@@ -90,6 +90,17 @@
 
 namespace mexplus {
 
+template <typename T>
+T * getImagPtr(const mxArray *array)
+{
+#ifdef SIL_OCTAVE
+  return reinterpret_cast<T *>(mxGetPi(array));
+#else
+  return &(reinterpret_cast<T *>(mxGetData(array))[1]);
+#endif
+}
+
+
 /** mxArray object wrapper for data conversion and manipulation.
  *
  * The class is similar to a combination of unique_ptr and wrapper around
@@ -932,7 +943,7 @@ class MxArray {
                        >::type* value) {
     if (mxIsComplex(array)) {
       T real_part = *(reinterpret_cast<T*>(mxGetPr(array)) + index);
-      T imag_part = *(reinterpret_cast<T*>(mxGetPi(array)) + index);
+      T imag_part = *(reinterpret_cast<T*>(getImagPtr<T>(array)) + index);
       *value = std::abs(std::complex<R>(real_part, imag_part));
     } else {
       *value = *(reinterpret_cast<T*>(mxGetData(array)) + index);
@@ -951,7 +962,7 @@ class MxArray {
     typename R::value_type real_part, imag_part;
     if (mxIsComplex(array)) {
       real_part = *(reinterpret_cast<T*>(mxGetPr(array)) + index);
-      imag_part = *(reinterpret_cast<T*>(mxGetPi(array)) + index);
+      imag_part = *(reinterpret_cast<T*>(getImagPtr<T>(array)) + index);
     } else {
       real_part = *(reinterpret_cast<T*>(mxGetData(array)) + index);
       imag_part = 0.0;
@@ -1010,7 +1021,7 @@ class MxArray {
       value->assign(data_pointer, data_pointer + array_size);
     } else {
       T* real_part = reinterpret_cast<T*>(mxGetPr(array));
-      T* imag_part = reinterpret_cast<T*>(mxGetPi(array));
+      T* imag_part = reinterpret_cast<T*>(getImagPtr<T>(array));
       value->resize(array_size);
       for (mwSize i = 0; i < array_size; ++i) {
         double mag = std::abs(std::complex<double>(
@@ -1038,7 +1049,7 @@ class MxArray {
       }
     } else {
       T* real_part = reinterpret_cast<T*>(mxGetPr(array));
-      T* imag_part = reinterpret_cast<T*>(mxGetPi(array));
+      T* imag_part = reinterpret_cast<T*>(getImagPtr<T>(array));
       for (mwSize i = 0; i < array_size; ++i) {
         (*value)[i] = typename R::value_type(*(real_part++), *(imag_part++));
       }
@@ -1099,7 +1110,7 @@ class MxArray {
                          >::type& value) {
     if (mxIsComplex(array)) {
       *(reinterpret_cast<R*>(mxGetPr(array)) + index) = value;
-      *(reinterpret_cast<R*>(mxGetPi(array)) + index) = 0.0;
+      *(reinterpret_cast<R*>(getImagPtr<T>(array)) + index) = 0.0;
     } else {
       *(reinterpret_cast<R*>(mxGetData(array)) + index) = value;
     }
@@ -1116,7 +1127,7 @@ class MxArray {
                          >::type& value) {
     if (mxIsComplex(array)) {
       *(reinterpret_cast<R*>(mxGetPr(array)) + index) = value.real();
-      *(reinterpret_cast<R*>(mxGetPi(array)) + index) = value.imag();
+      *(reinterpret_cast<R*>(getImagPtr<T>(array)) + index) = value.imag();
     } else {
       *(reinterpret_cast<R*>(mxGetData(array)) + index) = std::abs(value);
     }
@@ -1203,7 +1214,7 @@ mxArray* MxArray::fromInternal(const typename std::enable_if<
                                          MxTypes<T>::complexity);
   MEXPLUS_CHECK_NOTNULL(array);
   *reinterpret_cast<typename T::value_type*>(mxGetPr(array)) = value.real();
-  *reinterpret_cast<typename T::value_type*>(mxGetPi(array)) = value.imag();
+  *reinterpret_cast<typename T::value_type*>(getImagPtr<T>(array)) = value.imag();
 
   return array;
 }
@@ -1238,7 +1249,7 @@ mxArray* MxArray::fromInternal(const typename std::enable_if<
                                          mxCOMPLEX);
   MEXPLUS_CHECK_NOTNULL(array);
   ValueType* real = reinterpret_cast<ValueType*>(mxGetPr(array));
-  ValueType* imag = reinterpret_cast<ValueType*>(mxGetPi(array));
+  ValueType* imag = reinterpret_cast<ValueType*>(getImagPtr<ValueType>(array));
   typename Container::const_iterator it;
   for (it = value.begin(); it != value.end(); it++) {
       *real++ = (*it).real();
@@ -1560,7 +1571,7 @@ T* MxArray::getImagData() const {
   MEXPLUS_ASSERT(MxTypes<T>::class_id == classID(),
                  "Expected a %s array.",
                  typeid(T).name());
-  return reinterpret_cast<T*>(mxGetPi(array_));
+  return reinterpret_cast<T*>(getImagPtr<T>(array_));
 }
 
 template <typename T>
